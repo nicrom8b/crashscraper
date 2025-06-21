@@ -1,0 +1,24 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+fastapi = "*"
+uvicorn = "*"
+sqlalchemy = "*"
+pymysql = "*"
+requests = "*"
+pydantic = "*"
+beautifulsoup4 = "*"
+nltk = "*"
+spacy = "*"
+es-core-news-sm = {file = "https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.7.0/es_core_news_sm-3.7.0.tar.gz"}
+
+[scripts]
+start = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+[requires]
+python_version = "3.11" 
