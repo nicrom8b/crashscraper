@@ -118,9 +118,10 @@ Esto permite que Python resuelva correctamente los imports de paquetes internos.
 2- todo jujuy: https://www.todojujuy.com/ # completed
 3- somos jujuy: https://www.somosjujuy.com.ar/ # completed
 4- jujuy al momento: https://www.jujuyalmomento.com/ # completed
-5- jujuy al dia: https://www.jujuyaldia.com.ar/ # Canceled: site with issues
-6- jujuy dice: https://www.jujuydice.com.ar/ # completed Nota: Posiblemente no tenga noticias de accidentes
-7- diario jujuy: https://www.diariojujuy.com.ar/ # TODO: no tiene noticas de accidentes 
-8- el pregon: https://www.pregon.com.ar/ # completed
-9- periodico lea: https://www.periodicolea.com.ar/
-10- el submarino: https://elsubmarinojujuy.com.ar/
+5- jujuy dice: https://www.jujuydice.com.ar/ # completed Nota: Posiblemente no tenga noticias de accidentes
+6- el pregon: https://www.pregon.com.ar/ # completed
+7- el submarino: https://elsubmarinojujuy.com.ar/ # completed
+8- eltribuno (Salta): https://www.eltribuno.com # completed
+9- informate Salta: https://informatesalta.com.ar/ # completed
+10: Que pasa salta: https://www.quepasasalta.com.ar # completed
+
