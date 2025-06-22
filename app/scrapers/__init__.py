@@ -10,7 +10,7 @@ from .pregon import PregonScraper
 from .elsubmarinojujuy import ElSubmarinoJujuyScraper
 from .quepasasalta import QuePasaSaltaScraper
 
-FECHA_LIMITE_GLOBAL = datetime.date(2025, 5, 15)
+FECHA_LIMITE_GLOBAL = datetime.date(2025, 6, 1)
 FECHA_LIMITE_TEST = datetime.date(2025, 6, 1)
 
 SCRAPERS = [
