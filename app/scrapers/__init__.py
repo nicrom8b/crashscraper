@@ -1,5 +1,4 @@
 import datetime
-from .clarin import ClarinScraper
 from .eltribuno import ElTribunoScraper
 from .eltribuno_salta import ElTribunoSaltaScraper
 from .informate_salta import InformateSaltaScraper
@@ -15,7 +14,6 @@ FECHA_LIMITE_GLOBAL = datetime.date(2025, 5, 15)
 FECHA_LIMITE_TEST = datetime.date(2025, 6, 1)
 
 SCRAPERS = [
-    ClarinScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
     ElTribunoScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
     ElTribunoSaltaScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
     InformateSaltaScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
