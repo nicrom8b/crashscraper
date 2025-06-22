@@ -3,7 +3,7 @@ SEARCH_TERMS = [
     'accidente', 'choque', 'colisión','colisionó', 'vial',
     'accidente de tránsito', 'accidente vehicular',
     'choque frontal', 'volcamiento', 'vehículo'
-    'embestió', 'atropelló', 'siniestro', 'atropello'
+    'embestió', 'atropelló', 'siniestro', 'atropello', 'embestir'
     'heridos', 'fallecidos', 'muertos', 'lesionados', 'volcó'
 ]
 

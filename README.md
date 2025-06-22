@@ -114,13 +114,13 @@ Esto permite que Python resuelva correctamente los imports de paquetes internos.
 
 
 # Diarios a Scrapear
-1-  el tribuno jujuy: https://eltribunodejujuy.com/
-2- todo jujuy: https://www.todojujuy.com/
-3- somos jujuy: https://www.somosjujuy.com.ar/
-4- jujuy al momento: https://www.jujuyalmomento.com/
-5- jujuy al dia: https://www.jujuyaldia.com.ar/
-6- jujuy dice: https://www.jujuydice.com.ar/
-7- diario jujuy: https://www.diariojujuy.com.ar/
-8- el pregon: https://www.pregon.com.ar/
+1-  el tribuno jujuy: https://eltribunodejujuy.com/ # completed
+2- todo jujuy: https://www.todojujuy.com/ # completed
+3- somos jujuy: https://www.somosjujuy.com.ar/ # completed
+4- jujuy al momento: https://www.jujuyalmomento.com/ # completed
+5- jujuy al dia: https://www.jujuyaldia.com.ar/ # Canceled: site with issues
+6- jujuy dice: https://www.jujuydice.com.ar/ # completed Nota: Posiblemente no tenga noticias de accidentes
+7- diario jujuy: https://www.diariojujuy.com.ar/ # TODO: no tiene noticas de accidentes 
+8- el pregon: https://www.pregon.com.ar/ # completed
 9- periodico lea: https://www.periodicolea.com.ar/
 10- el submarino: https://elsubmarinojujuy.com.ar/

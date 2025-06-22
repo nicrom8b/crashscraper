@@ -24,9 +24,19 @@ class Noticia(Base):
     url = Column(String(255), nullable=False)
     es_accidente_transito = Column(Boolean, default=None, nullable=True)
     contenido_crudo = Column(Text, nullable=True)
+    media_id = Column(String(50), nullable=True)  # Campo para identificar el medio de comunicación
     
     # Campos para los clasificadores
     es_accidente_simple = Column(Boolean, default=None, nullable=True)
     es_accidente_stem = Column(Boolean, default=None, nullable=True)
     es_accidente_lemma = Column(Boolean, default=None, nullable=True)
-    es_accidente_ml = Column(Boolean, default=None, nullable=True) 
+    es_accidente_ml = Column(Boolean, default=None, nullable=True)
+
+def get_db():
+    """Obtiene una sesión de la base de datos"""
+    db = SessionLocal()
+    try:
+        return db
+    except Exception:
+        db.close()
+        raise 

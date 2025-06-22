@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app.db import SessionLocal, Noticia
 from app.scrapers import SCRAPERS
 from app.classifiers.simple import es_accidente_simple
