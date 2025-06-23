@@ -140,16 +140,3 @@ Para evitar scrapear noticias demasiado antiguas, se puede configurar una fecha 
 FECHA_LIMITE_GLOBAL = datetime.date(2025, 1, 1)
 ```
 Esta fecha también se puede sobrescribir desde la interfaz web al ejecutar los scrapers.
-
-# Diarios a Scrapear
-1-  el tribuno jujuy: https://eltribunodejujuy.com/  
-2- todo jujuy: https://www.todojujuy.com/ 
-3- somos jujuy: https://www.somosjujuy.com.ar/ 
-4- jujuy al momento: https://www.jujuyalmomento.com/ 
-5- jujuy dice: https://www.jujuydice.com.ar/
-6- el pregon: https://www.pregon.com.ar/ 
-7- el submarino: https://elsubmarinojujuy.com.ar/ 
-8- eltribuno (Salta): https://www.eltribuno.com 
-9- informate Salta: https://informatesalta.com.ar/ 
-10: Que pasa salta: https://www.quepasasalta.com.ar 
-
