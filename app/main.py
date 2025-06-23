@@ -1,17 +1,28 @@
-from fastapi import FastAPI, Query, Depends, HTTPException
+from fastapi import FastAPI, Query, Depends, HTTPException, Request, Form
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.db import SessionLocal, Noticia, get_db
-from app.query_service import QueryService
+from app.query_service import QueryService, Consulta
 from app.llm_client import llm_client
 from typing import Optional, List, Dict, Any
 import datetime
+import logging
+import asyncio
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 app = FastAPI(
     title="Crashscraper API",
     description="API para consulta de noticias sobre accidentes de tránsito usando LLM",
     version="1.0.0"
 )
+
+# Montar directorio estático
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Configurar plantillas de Jinja2
+templates = Jinja2Templates(directory="app/templates")
 
 # Configurar CORS
 app.add_middleware(
@@ -31,32 +42,32 @@ def get_db():
         db.close()
 
 @app.get("/")
-def root():
-    return {
-        "message": "Crashscraper API",
-        "version": "1.0.0",
-        "description": "API para consulta de noticias sobre accidentes de tránsito",
-        "endpoints": {
-            "consultar": "/consultar?pregunta=tu_pregunta",
-            "estadisticas": "/estadisticas",
-            "buscar": "/buscar?q=termino_busqueda",
-            "ollama_status": "/ollama/status"
-        }
-    }
+def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request, "page": "consulta"})
 
-@app.get("/consultar")
+@app.get("/dashboard")
+def dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request, "page": "dashboard"})
+
+@app.get("/acciones")
+def acciones(request: Request):
+    return templates.TemplateResponse("acciones.html", {"request": request, "page": "acciones"})
+
+@app.get("/estadisticas")
+def get_stats(db: Session = Depends(get_db)):
+    query_service = QueryService(db)
+    return query_service.get_statistics()
+
+@app.post("/consultar")
 def consultar(
-    pregunta: str = Query(..., description="Pregunta en lenguaje natural sobre accidentes de tránsito"),
-    db: SessionLocal = Depends(get_db)
+    consulta: Consulta, db: Session = Depends(get_db)
 ):
-    """
-    Consulta en lenguaje natural usando LLM y base de datos
-    """
     try:
         query_service = QueryService(db)
-        result = query_service.query_with_llm(pregunta)
-        return result
+        # Devolvemos directamente el objeto que genera el servicio
+        return query_service.query_with_llm(consulta.pregunta)
     except Exception as e:
+        logging.exception("Error en la consulta")
         raise HTTPException(status_code=500, detail=f"Error en la consulta: {str(e)}")
 
 @app.get("/buscar")
@@ -191,7 +202,41 @@ def listar_noticias(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listando noticias: {str(e)}")
 
-@app.post("/consulta")
-def consultar_con_llm(pregunta: str, db: Session = Depends(get_db)):
-    query_service = QueryService(db)
-    return query_service.query_with_llm(pregunta) 
+async def stream_script_output(command: list[str]):
+    """
+    Ejecuta un script en un subproceso y transmite su salida stdout y stderr.
+    """
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    async def reader(stream, prefix):
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            log_line = f"{prefix}: {line.decode('utf-8')}"
+            print(log_line, end="")
+            yield log_line
+
+    # Combinamos la salida estándar y la de error en un solo stream de logs
+    async for log_line in reader(process.stdout, "INFO"):
+        yield log_line
+    async for log_line in reader(process.stderr, "ERROR"):
+        yield log_line
+
+    await process.wait()
+
+@app.post("/acciones/ejecutar-scrapers")
+async def ejecutar_scrapers(fecha_limite: Optional[str] = Query(None)):
+    command = ["pipenv", "run", "python", "app/scraper_runner.py"]
+    if fecha_limite:
+        command.extend(["--fecha-limite", fecha_limite])
+    return StreamingResponse(stream_script_output(command), media_type="text/plain")
+
+@app.post("/acciones/ejecutar-clasificadores")
+async def ejecutar_clasificadores():
+    command = ["pipenv", "run", "python", "scripts/run_classifiers.py"]
+    return StreamingResponse(stream_script_output(command), media_type="text/plain") 

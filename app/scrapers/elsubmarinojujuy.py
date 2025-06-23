@@ -5,6 +5,7 @@ from datetime import datetime
 import locale
 import time
 from urllib.parse import urljoin
+import dateparser
 
 from app.scrapers.base import BaseScraper
 from app.db import Noticia, get_db
@@ -12,21 +13,12 @@ from app.db import Noticia, get_db
 class ElSubmarinoJujuyScraper(BaseScraper):
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
-        self.media_id = 'elsubmarinojujuy'
+        self.media_name = 'elsubmarinojujuy'
         self.base_url = 'https://elsubmarinojujuy.com.ar'
         self.tag_url = 'https://elsubmarinojujuy.com.ar/tag/accidente/'
         
-        # Intentar configurar el localismo para español para parsear los meses
-        try:
-            locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-        except locale.Error:
-            try:
-                locale.setlocale(locale.LC_TIME, 'es_AR.UTF-8')
-            except locale.Error:
-                print("⚠️ No se pudo configurar el localismo a español. El parseo de fechas puede fallar.")
-
     def scrape(self, db):
-        print(f"🚀 Scraping {self.media_id}")
+        print(f"🚀 Scraping {self.media_name}")
         noticias_guardadas = 0
         page = 1
         
@@ -67,12 +59,7 @@ class ElSubmarinoJujuyScraper(BaseScraper):
                 # --- Extraer fecha primero para chequear límite ---
                 date_tag = article_el.select_one('span.tie-date')
                 fecha_texto = date_tag.get_text(strip=True) if date_tag else ''
-                fecha_articulo = None
-                if fecha_texto:
-                    try:
-                        fecha_articulo = datetime.strptime(fecha_texto, '%A, %d %B, %Y')
-                    except ValueError:
-                        pass # La fecha se parseará de nuevo en _scrape_article
+                fecha_articulo = dateparser.parse(fecha_texto, languages=['es'])
 
                 if self.fecha_limite and fecha_articulo and fecha_articulo.date() < self.fecha_limite:
                     print(f"📅 Se alcanzó la fecha límite ({fecha_articulo.date()}). Deteniendo.")
@@ -80,17 +67,15 @@ class ElSubmarinoJujuyScraper(BaseScraper):
                     break
                 
                 # --- Si la fecha es válida, proceder ---
-                if db.query(Noticia).filter(Noticia.url == url_articulo).first():
-                    print(f"⏭️ Artículo ya existe: {url_articulo}")
-                    continue
-
                 try:
-                    articulo_guardado, _ = self._scrape_article(url_articulo, db)
-                    if articulo_guardado:
-                        noticias_guardadas += 1
-                        print(f"✅ Artículo guardado: {url_articulo}")
+                    datos_articulo = self._scrape_article(url_articulo)
+                    if datos_articulo:
+                        datos_articulo['media_name'] = self.media_name
+                        if self._guardar_noticia(db, datos_articulo):
+                            noticias_guardadas += 1
                 except Exception as e:
                     print(f"❌ Error scrapeando artículo {url_articulo}: {e}")
+                    db.rollback()
 
                 time.sleep(1) 
 
@@ -99,10 +84,10 @@ class ElSubmarinoJujuyScraper(BaseScraper):
             
             page += 1
         
-        print(f"✅ Scraping completado para {self.media_id}. Total de noticias guardadas: {noticias_guardadas}")
+        print(f"✅ Scraping completado para {self.media_name}. Total de noticias guardadas: {noticias_guardadas}")
         return noticias_guardadas
 
-    def _scrape_article(self, url, db):
+    def _scrape_article(self, url):
         try:
             response = requests.get(url, timeout=15)
             response.raise_for_status()
@@ -115,14 +100,8 @@ class ElSubmarinoJujuyScraper(BaseScraper):
             # --- Fecha ---
             fecha_tag = soup.select_one('span.tie-date')
             fecha_texto = fecha_tag.get_text(strip=True) if fecha_tag else ''
-            fecha_articulo = None
-            if fecha_texto:
-                try:
-                    # Formato: "viernes, 2 mayo, 2025"
-                    fecha_articulo = datetime.strptime(fecha_texto, '%A, %d %B, %Y')
-                except ValueError as e:
-                    print(f"⚠️ No se pudo parsear la fecha '{fecha_texto}': {e}")
-
+            fecha_articulo = dateparser.parse(fecha_texto, languages=['es'])
+            
             # --- Contenido ---
             contenido_tag = soup.select_one('div.entry')
             contenido = ''
@@ -132,27 +111,20 @@ class ElSubmarinoJujuyScraper(BaseScraper):
             
             contenido_crudo = response.text
 
-            # Guardar en DB
-            noticia = Noticia(
-                titulo=titulo,
-                contenido=contenido,
-                url=url,
-                fecha=fecha_articulo,
-                contenido_crudo=contenido_crudo[:60000],
-                media_id=self.media_id
-            )
-            db.add(noticia)
-            db.commit()
-
-            return True, fecha_articulo
+            return {
+                "titulo": titulo,
+                "contenido": contenido,
+                "url": url,
+                "fecha": fecha_articulo.date() if fecha_articulo else None,
+                "contenido_crudo": contenido_crudo[:60000]
+            }
         
         except requests.RequestException as e:
             print(f"❌ Error al solicitar artículo {url}: {e}")
-            return False, None
+            return None
         except Exception as e:
             print(f"❌ Error procesando artículo {url}: {e}")
-            db.rollback()
-            return False, None
+            return None
 
 if __name__ == '__main__':
     # Script de prueba

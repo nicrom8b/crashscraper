@@ -13,10 +13,10 @@ class PregonScraper(BaseScraper):
         self.base_url = "https://www.pregon.com.ar"
         self.seccion_url = "https://www.pregon.com.ar/Policial"
         self.ajax_endpoint = "https://www.pregon.com.ar/CalledConsultasExternas.php"
-        self.media_id = 'pregon'
+        self.media_name = 'pregon'
 
     def scrape(self, db) -> int:
-        print(f"🚀 Scraping {self.media_id}")
+        print(f"🚀 Scraping {self.media_name}")
         noticias_guardadas = 0
         urls_vistas = set()
         
@@ -41,7 +41,7 @@ class PregonScraper(BaseScraper):
                 contenido_articulo = self._extraer_contenido_articulo(url_articulo)
                 
                 if contenido_articulo:
-                    titulo, contenido, fecha_articulo = contenido_articulo
+                    titulo, contenido, fecha_articulo, contenido_crudo = contenido_articulo
                     
                     # Verificar si ya existe en la base de datos
                     if db.query(Noticia).filter(Noticia.url == url_articulo).first():
@@ -54,19 +54,17 @@ class PregonScraper(BaseScraper):
                         return noticias_guardadas
                     
                     # Crear objeto Noticia
-                    noticia = Noticia(
-                        titulo=titulo,
-                        contenido=contenido,
-                        url=url_articulo,
-                        fecha=fecha_articulo,
-                        contenido_crudo=response.text[:60000],  # Limitar tamaño
-                        media_id=self.media_id
-                    )
+                    noticia_data = {
+                        "titulo": titulo,
+                        "contenido": contenido,
+                        "url": url_articulo,
+                        "fecha": fecha_articulo,
+                        "contenido_crudo": contenido_crudo,
+                        "media_name": self.media_name
+                    }
                     
-                    db.add(noticia)
-                    db.commit()
-                    noticias_guardadas += 1
-                    print(f"✅ Artículo guardado: {titulo[:50]}...")
+                    if self._guardar_noticia(db, noticia_data):
+                        noticias_guardadas += 1
                 
                 time.sleep(1)  # Pausa entre requests
             
@@ -104,47 +102,46 @@ class PregonScraper(BaseScraper):
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
+            if soup:
+                raw_html = str(soup.find('body')) # Usar el cuerpo como fallback si no hay un article
+            else:
+                raw_html = ""
+            
             # Extraer título
-            titulo = ""
-            h1 = soup.find("h1", class_="titulo")
-            if h1:
-                titulo = h1.get_text(strip=True)
+            titulo_element = soup.find("h1", class_="titulo") if soup else None
+            titulo = titulo_element.get_text(strip=True) if titulo_element else ""
 
-            # Extraer fecha - usar datePublished del JSON-LD
+            # Extraer fecha
             fecha = None
-            script_ld = soup.find("script", type="application/ld+json")
+            script_ld = soup.find("script", type="application/ld+json") if soup else None
             if script_ld:
                 try:
                     json_data = json.loads(script_ld.string)
                     if isinstance(json_data, dict) and 'datePublished' in json_data:
-                        fecha_str = json_data['datePublished']
-                        # Formato: "17-06-2025"
+                        fecha_str = json_data['datePublished'] # Formato: "17-06-2025"
                         if '-' in fecha_str and len(fecha_str.split('-')) == 3:
                             try:
                                 dia, mes, anio = fecha_str.split('-')
                                 fecha = datetime(int(anio), int(mes), int(dia))
-                            except:
-                                pass
-                except:
-                    pass
+                            except ValueError: pass
+                except (json.JSONDecodeError, TypeError): pass
             
             # Extraer contenido principal
+            texto_div = soup.find("div", class_="texto") if soup else None
             contenido = ""
-            texto_div = soup.find("div", class_="texto")
             if texto_div:
-                # Extraer párrafos del contenido
                 parrafos = texto_div.find_all("p")
                 contenido = "\n\n".join([p.get_text(strip=True) for p in parrafos if p.get_text(strip=True)])
 
             if titulo and contenido:
-                return titulo, contenido, fecha
+                return titulo, contenido, fecha, raw_html[:60000]
             else:
                 print(f"⚠️ No se pudo extraer contenido completo de: {url_articulo}")
-                return None
+                return None, None, None, None
 
         except Exception as e:
             print(f"❌ Error extrayendo artículo {url_articulo}: {e}")
-            return None
+            return None, None, None, None
 
     def _cargar_mas_articulos_vermas(self, db, urls_vistas):
         """Carga más artículos usando el método 'Ver Más' de manera iterativa"""
@@ -190,7 +187,6 @@ class PregonScraper(BaseScraper):
                     if 'contenidos' in json_data and json_data['contenidos']:
                         server_returned_ids = {str(cid) for cid in json_data['contenidos'] if cid != 0}
                         
-                        # Determinar qué IDs son nuevos
                         nuevos_ids_a_procesar = server_returned_ids - set(content_ids)
 
                         if not nuevos_ids_a_procesar:
@@ -201,20 +197,19 @@ class PregonScraper(BaseScraper):
                         
                         detener_por_fecha = False
                         for contenido_id in nuevos_ids_a_procesar:
-                            # Construir URL y procesar
-                            # Es necesario adivinar parte de la URL, como el año/mes, lo cual es frágil.
-                            # Usaremos la fecha actual como una aproximación, ya que la API no la devuelve.
-                            fecha_actual = datetime.now()
-                            url_articulo = f"https://www.pregon.com.ar/nota/{contenido_id}/{fecha_actual.year}/{fecha_actual.month:02d}/articulo-generico"
+                            # La API no devuelve la URL completa, hay que construirla
+                            # Esto es frágil, si cambia la estructura de URL, se romperá
+                            # Asumimos una estructura común para los artículos.
+                            url_articulo = f"https://www.pregon.com.ar/nota/{contenido_id}/"
 
                             if url_articulo in urls_vistas:
                                 continue
-                            urls_vistas.add(url_articulo)
                             
                             contenido_articulo = self._extraer_contenido_articulo(url_articulo)
-                            
+                            urls_vistas.add(url_articulo) # Añadir después de la extracción para obtener la URL final
+
                             if contenido_articulo:
-                                titulo, contenido, fecha_articulo = contenido_articulo
+                                titulo, contenido, fecha_articulo, contenido_crudo = contenido_articulo
                                 
                                 # Verificar fecha límite
                                 if self.fecha_limite and fecha_articulo and fecha_articulo.date() < self.fecha_limite:
@@ -222,20 +217,17 @@ class PregonScraper(BaseScraper):
                                     detener_por_fecha = True
                                     break
                                 
-                                # Guardar en DB
-                                if not db.query(Noticia).filter(Noticia.url == url_articulo).first():
-                                    noticia = Noticia(
-                                        titulo=titulo,
-                                        contenido=contenido,
-                                        url=url_articulo,
-                                        fecha=fecha_articulo,
-                                        contenido_crudo=str(contenido_articulo)[:60000],
-                                        media_id=self.media_id
-                                    )
-                                    db.add(noticia)
-                                    db.commit()
+                                noticia_data = {
+                                    "titulo": titulo,
+                                    "contenido": contenido,
+                                    "url": url_articulo,
+                                    "fecha": fecha_articulo,
+                                    "contenido_crudo": contenido_crudo,
+                                    "media_name": self.media_name
+                                }
+
+                                if self._guardar_noticia(db, noticia_data):
                                     noticias_adicionales += 1
-                                    print(f"✅ Artículo 'Ver Más' guardado: {titulo[:50]}...")
 
                             time.sleep(1)
 
@@ -243,8 +235,8 @@ class PregonScraper(BaseScraper):
                             print("🛑 Deteniendo scraping por fecha límite.")
                             return noticias_adicionales
 
-                        # Reemplazar la lista de IDs para la siguiente petición
-                        content_ids = list(server_returned_ids)
+                        # Actualizar la lista de IDs para la siguiente petición
+                        content_ids.extend(list(nuevos_ids_a_procesar))
                     else:
                         print("📄 No se encontraron 'contenidos' en la respuesta.")
                         break

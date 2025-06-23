@@ -1,127 +1,155 @@
-# crashscraper
+# CrashScraper
 
-Proyecto de scraping y consulta de noticias sobre accidentes de tránsito usando FastAPI, MariaDB y un LLM local (Mistral vía Ollama).
+CrashScraper es una aplicación web integral diseñada para recopilar, procesar, clasificar y consultar noticias sobre accidentes de tránsito en el norte de Argentina. Utiliza un conjunto de scrapers para extraer información de diversos diarios digitales, la almacena en una base de datos y la expone a través de una API RESTful y una interfaz web interactiva.
 
-## Requisitos
-- Docker y docker-compose
-- pipenv (para desarrollo local)
+El proyecto integra un modelo de lenguaje grande (LLM) para permitir consultas en lenguaje natural sobre los datos recopilados.
+
+**Tecnologías:** FastAPI, SQLAlchemy, MariaDB, Docker, Ollama, NLTK, spaCy.
+
+## Características Principales
+
+- **Scraping Multi-fuente**: Extrae noticias de 10 diarios digitales de Jujuy y Salta.
+- **Procesamiento de Texto**: Limpia y normaliza el texto de las noticias para su análisis.
+- **Clasificación Inteligente**: Utiliza un sistema de múltiples clasificadores (basados en keywords, stemming, lematización y ponderación) con un mecanismo de votación para determinar si una noticia trata sobre un accidente de tránsito.
+- **API RESTful**: Provee endpoints para buscar, filtrar y obtener estadísticas de las noticias.
+- **Interfaz Web Interactiva**: Un panel de control para visualizar estadísticas, una página de acciones para ejecutar scrapers/clasificadores y una interfaz de consulta.
+- **Consultas con LLM**: Permite realizar preguntas en lenguaje natural (ej: "¿cuántos accidentes hubo en moto el fin de semana?") que son respondidas por un modelo de lenguaje grande (Mistral) a través de Ollama.
+- **Orquestación con Docker**: Todo el ecosistema (API, base de datos, Ollama) se gestiona fácilmente con `docker-compose`.
+
+## Arquitectura y Flujo de Datos
+
+1.  **Ejecución de Scrapers**: El `Scraper Runner` (accesible desde la UI o por script) instancia y ejecuta todos los scrapers configurados.
+2.  **Extracción y Almacenamiento**: Cada scraper navega por un sitio de noticias, extrae los artículos relevantes y los guarda en la base de datos MariaDB. El medio (diario) se gestiona en una tabla separada (`media`).
+3.  **Clasificación**: El `Classifier Runner` (también ejecutable desde la UI o script) busca noticias sin clasificar en la base de datos.
+4.  **Análisis y Votación**: Cada noticia es analizada por cuatro clasificadores distintos. El resultado final se decide por mayoría de votos.
+5.  **Exposición vía API**: La API de FastAPI expone endpoints para acceder a los datos clasificados, obtener estadísticas y realizar búsquedas.
+6.  **Interfaz de Usuario**: La UI, construida con HTML, CSS y JavaScript, consume la API para mostrar dashboards, permitir la ejecución de tareas y realizar consultas.
+7.  **Consultas LLM**: Las preguntas en lenguaje natural se envían al `QueryService`, que interactúa con el `LLMClient` para obtener una respuesta del modelo Ollama.
+
+## Puesta en Marcha
+
+### Requisitos
+
+- Docker y `docker-compose`
+- `pipenv` (para desarrollo local)
 - Python 3.11
-- beautifulsoup4 (se instala automáticamente con pipenv)
 
-## Estructura del proyecto
-- `app/`: Lógica principal de la API, modelos, scrapers y clasificación.
-- `scripts/`: Scripts utilitarios para inicializar, consultar y limpiar la base de datos.
-- `docker-compose.yml`: Orquestación de servicios (API, DB, Ollama).
-- `Dockerfile`: Imagen de la app para producción/desarrollo.
+### Usando Docker (Método Recomendado)
 
-## Servicios
-- **API**: http://localhost:8000
-- **MariaDB**: localhost:3306
-- **Ollama**: http://localhost:11434
+Este comando levantará todos los servicios necesarios: la API, la base de datos y el servidor Ollama con el modelo Mistral.
 
-## Variables de entorno
-Se configuran en `docker-compose.yml` para la app:
+```bash
+# Construye las imágenes y levanta los contenedores
+docker-compose up --build
+```
+La primera vez, Docker descargará la imagen de MariaDB, Ollama y el modelo Mistral, lo cual puede tardar varios minutos.
+
+### Desarrollo Local
+
+Para desarrollo fuera de Docker, necesitarás una instancia local de MariaDB y Ollama.
+
+```bash
+# 1. Instalar dependencias
+pipenv install
+
+# 2. Configurar variables de entorno si es necesario
+# (ej: en un archivo .env)
+
+# 3. Ejecutar la aplicación
+pipenv run uvicorn app.main:app --reload
+```
+
+## Servicios Expuestos
+
+- **API / Interfaz Web**: [http://localhost:8000](http://localhost:8000)
+- **MariaDB**: `localhost:3306`
+- **Ollama API**: [http://localhost:11434](http://localhost:11434)
+
+## Scrapers Implementados
+
+El proyecto cuenta con scrapers para los siguientes medios:
+
+| Medio                  | Clase del Scraper             | Archivo                         |
+| ---------------------- | ----------------------------- | ------------------------------- |
+| El Tribuno de Jujuy    | `ElTribunoScraper`            | `app/scrapers/eltribuno.py`     |
+| Todo Jujuy             | `TodoJujuyScraper`            | `app/scrapers/todojujuy.py`     |
+| Somos Jujuy            | `SomosJujuyScraper`           | `app/scrapers/somosjujuy.py`    |
+| Jujuy Al Momento       | `JujuyAlMomentoScraper`       | `app/scrapers/jujuyalmomento.py`|
+| Jujuy Dice             | `JujuyDiceScraper`            | `app/scrapers/jujuydice.py`     |
+| El Pregón (Jujuy)      | `PregonScraper`               | `app/scrapers/pregon.py`        |
+| El Submarino (Jujuy)   | `ElSubmarinoJujuyScraper`     | `app/scrapers/elsubmarinojujuy.py`|
+| El Tribuno de Salta    | `ElTribunoSaltaScraper`       | `app/scrapers/eltribuno_salta.py`|
+| Informate Salta        | `InformateSaltaScraper`       | `app/scrapers/informate_salta.py`|
+| Qué Pasa Salta         | `QuePasaSaltaScraper`         | `app/scrapers/quepasasalta.py`  |
+
+
+## Sistema de Clasificación
+
+Para evitar falsos positivos, una noticia se clasifica como "accidente" solo si al menos dos de los siguientes clasificadores votan `True`:
+
+- **`es_accidente_simple`**: Búsqueda simple de palabras clave.
+- **`es_accidente_stemmer`**: Aplica stemming (raíz de palabras) a los términos de búsqueda para una coincidencia más amplia.
+- **`es_accidente_lemmatizer`**: Usa lematización (lema de la palabra) con spaCy para una comprensión semántica más precisa.
+- **`es_accidente_ml_weighted`**: Un modelo simple ponderado que asigna más peso a términos clave como "choque" o "siniestro vial".
+
+## Scripts Utilitarios
+
+Ubicados en el directorio `scripts/`. Deben ejecutarse como módulos desde la raíz del proyecto.
+
+- **Inicializar la DB**: Crea las tablas y carga datos de ejemplo.
+  ```bash
+  pipenv run python -m scripts.init_db
+  ```
+- **Limpiar la DB**: Elimina todas las noticias, manteniendo las tablas.
+  ```bash
+  pipenv run python -m scripts.limpiar_db
+  ```
+- **Ejecutar Scrapers y Clasificadores**:
+  ```bash
+  pipenv run python -m app.scraper_runner
+  ```
+
+## Modelo de Datos
+
+- **`media`**:
+  - `id` (PK)
+  - `name` (nombre del diario, ej: "todojujuy")
+- **`noticias`**:
+  - `id` (PK)
+  - `titulo`, `contenido`, `fecha`, `url`
+  - `media_id` (FK a `media.id`)
+  - `contenido_crudo` (HTML original para re-procesamiento)
+  - `classification` (Resultado final: 'ACCIDENTE' o 'NO_ACCIDENTE')
+  - `es_accidente_transito` (Resultado final en formato booleano)
+  - `es_accidente_simple` (Voto del clasificador de keywords)
+  - `es_accidente_stem` (Voto del clasificador con stemming)
+  - `es_accidente_lemma` (Voto del clasificador con lematización)
+  - `es_accidente_ml` (Voto del clasificador ponderado)
+
+## Configuración
+
+### Variables de Entorno
+Configuradas en `docker-compose.yml` para los contenedores.
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - `OLLAMA_HOST`, `OLLAMA_PORT`
 
-## Fecha límite global para scraping
-La fecha límite que usan todos los scrapers para filtrar noticias se define de forma global en:
-
-```
-app/scrapers/__init__.py
-```
-
-Busca la variable:
-
+### Fecha Límite para Scraping
+Para evitar scrapear noticias demasiado antiguas, se puede configurar una fecha límite global en `app/scrapers/__init__.py`, modificando la variable `FECHA_LIMITE_GLOBAL`.
 ```python
+# app/scrapers/__init__.py
 FECHA_LIMITE_GLOBAL = datetime.date(2025, 1, 1)
 ```
-
-Todos los scrapers reciben esta fecha como argumento al ser instanciados. Si quieres cambiar el rango de scraping, solo modifica este valor y se aplicará a todos los scrapers automáticamente.
-
-## Flujo de scraping y clasificación
-- Cada artículo extraído por los scrapers se guarda **inmediatamente** en la base de datos (commit tras cada inserción), con el campo `es_accidente_transito` en `NULL` (sin clasificar). Esto permite consultar la base de datos y ver los datos en tiempo real mientras el scraper está corriendo.
-- Al finalizar el scraping, el runner recorre todas las noticias sin clasificar y les asigna el valor correcto (`True` o `False`) usando el clasificador automático.
-- Esto permite manejar grandes volúmenes de datos y separar el scraping de la clasificación.
-
-## Inicializar la base de datos con ejemplos
-
-```bash
-pipenv run python -m scripts.init_db
-```
-Esto crea la tabla y agrega ejemplos de noticias.
-
-## Limpiar la base de datos (eliminar todas las noticias)
-
-```bash
-pipenv run python -m scripts.limpiar_db
-```
-Esto elimina todos los registros de la tabla `noticias` pero conserva la estructura.
-
-## Consultar la base de datos por consola
-
-```bash
-pipenv run python -m scripts.consultar_db
-```
-Muestra todas las noticias ordenadas por fecha.
-
-## Poblar la base de datos con noticias reales (scraping)
-
-```bash
-pipenv run python -m app.scraper_runner
-```
-Esto ejecuta todos los scrapers, guarda los artículos extraídos y luego los clasifica automáticamente.
-
-## Levantar el proyecto completo (API + DB + Ollama)
-
-```bash
-docker-compose up --build
-```
-
-## Endpoints principales de la API
-- `GET /`: Mensaje de bienvenida.
-- `GET /consultar?pregunta=...`: (En desarrollo) Consulta en lenguaje natural usando LLM.
-
-## Modelo de datos principal
-Tabla `noticias`:
-- `id`: int, PK
-- `titulo`: str
-- `contenido`: str
-- `fecha`: date
-- `url`: str
-- `es_accidente_transito`: bool o NULL (sin clasificar)
-
-## Scrapers disponibles
-- `ElTribunoScraper`: Scrapea noticias de El Tribuno de Jujuy.
-- `ClarinScraper`: Ejemplo dummy, reemplazar por scraping real.
-
-## Clasificación automática
-Las noticias se clasifican automáticamente como accidente de tránsito usando palabras clave, después de ser guardadas.
-
-## Problemas comunes
-
-### ModuleNotFoundError: No module named 'app'
-
-Si ves este error al ejecutar scripts, asegúrate de correrlos como módulo usando el flag `-m` desde la raíz del proyecto:
-
-```bash
-pipenv run python -m scripts.init_db
-pipenv run python -m app.scraper_runner
-```
-
-Esto permite que Python resuelva correctamente los imports de paquetes internos. 
-
-
+Esta fecha también se puede sobrescribir desde la interfaz web al ejecutar los scrapers.
 
 # Diarios a Scrapear
-1-  el tribuno jujuy: https://eltribunodejujuy.com/ # completed
-2- todo jujuy: https://www.todojujuy.com/ # completed
-3- somos jujuy: https://www.somosjujuy.com.ar/ # completed
-4- jujuy al momento: https://www.jujuyalmomento.com/ # completed
-5- jujuy dice: https://www.jujuydice.com.ar/ # completed Nota: Posiblemente no tenga noticias de accidentes
-6- el pregon: https://www.pregon.com.ar/ # completed
-7- el submarino: https://elsubmarinojujuy.com.ar/ # completed
-8- eltribuno (Salta): https://www.eltribuno.com # completed
-9- informate Salta: https://informatesalta.com.ar/ # completed
-10: Que pasa salta: https://www.quepasasalta.com.ar # completed
+1-  el tribuno jujuy: https://eltribunodejujuy.com/  
+2- todo jujuy: https://www.todojujuy.com/ 
+3- somos jujuy: https://www.somosjujuy.com.ar/ 
+4- jujuy al momento: https://www.jujuyalmomento.com/ 
+5- jujuy dice: https://www.jujuydice.com.ar/
+6- el pregon: https://www.pregon.com.ar/ 
+7- el submarino: https://elsubmarinojujuy.com.ar/ 
+8- eltribuno (Salta): https://www.eltribuno.com 
+9- informate Salta: https://informatesalta.com.ar/ 
+10: Que pasa salta: https://www.quepasasalta.com.ar 
 

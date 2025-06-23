@@ -40,10 +40,10 @@ def determinar_accidente_transito(resultados_clasificadores: Dict[str, bool]) ->
     
     return votos_positivos >= 2
 
-def clasificar_noticia_completa(titulo: str, contenido: str, thresholds: Dict[str, float] = None) -> Dict[str, Any]:
+def clasificar_noticia_completa(titulo: str, contenido: str, thresholds: Dict[str, float] = None) -> str:
     """
     Clasifica una noticia usando todos los clasificadores disponibles y determina
-    el resultado final por voto mayoritario.
+    el resultado final por voto mayoritario. Devuelve 'ACCIDENTE' o 'NO_ACCIDENTE'.
     
     Args:
         titulo: Título de la noticia
@@ -51,7 +51,7 @@ def clasificar_noticia_completa(titulo: str, contenido: str, thresholds: Dict[st
         thresholds: Diccionario con thresholds personalizados para cada clasificador
     
     Returns:
-        Dict con los resultados de cada clasificador y el resultado final
+        str: 'ACCIDENTE' o 'NO_ACCIDENTE'
     """
     # Usar thresholds por defecto si no se proporcionan
     if thresholds is None:
@@ -74,9 +74,5 @@ def clasificar_noticia_completa(titulo: str, contenido: str, thresholds: Dict[st
     # Determinar resultado final por voto mayoritario
     es_accidente_final = determinar_accidente_transito(resultados_clasificadores)
     
-    return {
-        'resultados_individuales': resultados_clasificadores,
-        'es_accidente_transito': es_accidente_final,
-        'votos_positivos': sum(resultados_clasificadores.values()),
-        'total_clasificadores': len(resultados_clasificadores)
-    } 
+    # Devolver tanto el resultado final como los votos individuales
+    return 'ACCIDENTE' if es_accidente_final else 'NO_ACCIDENTE', resultados_clasificadores 

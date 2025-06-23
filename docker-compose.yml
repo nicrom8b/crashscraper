@@ -16,6 +16,9 @@ services:
 
   ollama:
     image: ollama/ollama:latest
+    container_name: ollama
+    entrypoint: /bin/sh
+    command: -c "ollama serve & ollama pull mistral && wait"
     ports:
       - "11434:11434"
     volumes:

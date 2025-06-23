@@ -12,10 +12,10 @@ class JujuyAlMomentoScraper(BaseScraper):
         super().__init__(fecha_limite)
         self.base_url = "https://www.jujuyalmomento.com"
         self.pagina_url_template = "https://www.jujuyalmomento.com/contenidos/policiales.html?page={page}"
-        self.media_id = 'jujuyalmomento'
+        self.media_name = 'jujuyalmomento'
 
     def scrape(self, db) -> int:
-        print(f" scraping {self.media_id}")
+        print(f" scraping {self.media_name}")
         pagina = 1
         noticias_guardadas = 0
         urls_vistas = set()
@@ -75,18 +75,10 @@ class JujuyAlMomentoScraper(BaseScraper):
                         return noticias_guardadas
 
                     # Guardar en DB
-                    noticia_obj = Noticia(
-                        titulo=datos_articulo["titulo"],
-                        contenido=datos_articulo["contenido"],
-                        contenido_crudo=datos_articulo["contenido_crudo"],
-                        fecha=datos_articulo["fecha"],
-                        url=datos_articulo["url"],
-                        media_id=self.media_id
-                    )
-                    db.add(noticia_obj)
-                    db.commit()
-                    noticias_guardadas += 1
-                    print(f"✅ Artículo guardado: {datos_articulo['titulo'][:50]}...")
+                    datos_articulo['media_name'] = self.media_name
+                    if self._guardar_noticia(db, datos_articulo):
+                        noticias_guardadas += 1
+
                     time.sleep(1)
 
                 pagina += 1
@@ -163,7 +155,7 @@ class JujuyAlMomentoTagScraper(BaseScraper):
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
         self.base_url = "https://www.jujuyalmomento.com"
-        self.media_id = 'jujuyalmomento'
+        self.media_name = 'jujuyalmomento'
         # Lista de etiquetas/slugs para scrapear
         self.tags = [
             "siniestro-a421",
@@ -224,18 +216,9 @@ class JujuyAlMomentoTagScraper(BaseScraper):
                     if self.fecha_limite and datos_articulo['fecha'].date() < self.fecha_limite:
                         print(f"📅 Se alcanzó la fecha límite ({self.fecha_limite}), finalizando búsqueda para '{tag}'.")
                         return noticias_guardadas
-                    noticia_obj = Noticia(
-                        titulo=datos_articulo["titulo"],
-                        contenido=datos_articulo["contenido"],
-                        contenido_crudo=datos_articulo["contenido_crudo"],
-                        fecha=datos_articulo["fecha"],
-                        url=datos_articulo["url"],
-                        media_id=self.media_id
-                    )
-                    db.add(noticia_obj)
-                    db.commit()
-                    noticias_guardadas += 1
-                    print(f"✅ Artículo guardado: {datos_articulo['titulo'][:50]}...")
+                    datos_articulo['media_name'] = self.media_name
+                    if self._guardar_noticia(db, datos_articulo):
+                        noticias_guardadas += 1
                     time.sleep(1)
                 pagina += 1
                 time.sleep(2)

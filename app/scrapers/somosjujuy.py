@@ -13,7 +13,7 @@ class SomosJujuyScraper(BaseScraper):
 
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
-        self.media_id = 'somosjujuy'
+        self.media_name = 'somosjujuy'
 
     def scrape(self, db) -> int:
         noticias_guardadas = 0
@@ -88,21 +88,17 @@ class SomosJujuyScraper(BaseScraper):
                         titulo = self._extract_title(article_data, nota_soup)
                         contenido, contenido_crudo = self._extract_content(nota_soup)
 
-                        noticia = {
+                        noticia_data = {
                             "titulo": titulo,
                             "contenido": contenido,
                             "contenido_crudo": contenido_crudo,
                             "fecha": fecha,
                             "url": url_articulo,
-                            "media_id": self.media_id
+                            "media_name": self.media_name
                         }
                         
-                        from app.db import Noticia
-                        noticia_obj = Noticia(**noticia, es_accidente_transito=None)
-                        db.add(noticia_obj)
-                        db.commit()
-                        noticias_guardadas += 1
-                        print(f"✅ Artículo extraído y guardado: {titulo}")
+                        if self._guardar_noticia(db, noticia_data):
+                            noticias_guardadas += 1
                         
                         time.sleep(2)
 

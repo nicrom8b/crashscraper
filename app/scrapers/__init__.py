@@ -13,16 +13,16 @@ from .quepasasalta import QuePasaSaltaScraper
 FECHA_LIMITE_GLOBAL = datetime.date(2025, 6, 1)
 FECHA_LIMITE_TEST = datetime.date(2025, 6, 1)
 
+# Esta lista ahora contiene las CLASES, no las instancias.
 SCRAPERS = [
-    ElTribunoScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    ElTribunoSaltaScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    InformateSaltaScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    TodoJujuyScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    SomosJujuyScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    JujuyAlMomentoScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    JujuyDiceScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    PregonScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    ElSubmarinoJujuyScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    QuePasaSaltaScraper(fecha_limite=FECHA_LIMITE_GLOBAL),
-    # Agrega aquí los demás scrapers
+    ElTribunoScraper,
+    ElTribunoSaltaScraper,
+    InformateSaltaScraper,
+    TodoJujuyScraper,
+    SomosJujuyScraper,
+    JujuyAlMomentoScraper,
+    JujuyDiceScraper,
+    PregonScraper,
+    ElSubmarinoJujuyScraper,
+    QuePasaSaltaScraper,
 ] 

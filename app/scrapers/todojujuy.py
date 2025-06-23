@@ -13,7 +13,7 @@ class TodoJujuyScraper(BaseScraper):
 
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
-        self.media_id = 'todojujuy'
+        self.media_name = 'todojujuy'
 
     def scrape(self, db) -> int:
         noticias_guardadas = 0
@@ -89,36 +89,24 @@ class TodoJujuyScraper(BaseScraper):
                             # Obtiene el título final desde la página del artículo
                             titulo_final = self._extract_title(nota_soup, titulo)
                             
-                            noticia = {
+                            noticia_data = {
                                 "titulo": titulo_final,
                                 "contenido": contenido,
                                 "contenido_crudo": contenido_crudo,
                                 "fecha": fecha or datetime.date.today(),
                                 "url": url,
-                                "media_id": self.media_id
+                                "media_name": self.media_name
                             }
                             
-                            # Guardar en la base de datos
-                            from app.db import Noticia
-                            noticia_obj = Noticia(
-                                titulo=noticia["titulo"],
-                                contenido=noticia["contenido"],
-                                contenido_crudo=noticia["contenido_crudo"],
-                                fecha=noticia["fecha"],
-                                url=noticia["url"],
-                                es_accidente_transito=None,
-                                media_id=noticia["media_id"]
-                            )
-                            db.add(noticia_obj)
-                            db.commit()
-                            noticias_guardadas += 1
-                            print(f"✅ Artículo extraído y guardado: {titulo_final}")
+                            if self._guardar_noticia(db, noticia_data):
+                                noticias_guardadas += 1
                             
                             # Espera entre requests de artículos individuales
                             time.sleep(2)
                             
                         except Exception as e:
                             print(f"❌ Error scraping artículo individual {url}: {str(e)}")
+                            db.rollback()
                             continue
                     
                     except Exception as e:

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrashScraper - Acciones</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>CrashScraper</h1>
+        <nav>
+            <a href="/" class="{{ 'active' if page == 'consulta' else '' }}">Consulta Inteligente</a>
+            <a href="/dashboard" class="{{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
+            <a href="/acciones" class="{{ 'active' if page == 'acciones' else '' }}">Acciones</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>Acciones y Tareas en Segundo Plano</h2>
+            
+            <div class="actions-container">
+                <div class="action-card">
+                    <h3>Ejecutar Scrapers</h3>
+                    <p>Busca nuevas noticias en todos los medios de comunicación configurados.</p>
+                    <div class="action-controls">
+                        <label for="fecha-limite-scrapers">Fecha Límite:</label>
+                        <input type="date" id="fecha-limite-scrapers" name="fecha-limite">
+                        <button id="run-scrapers-btn" class="action-btn">Ejecutar Todos</button>
+                    </div>
+                    <pre id="scrapers-log" class="log-output"></pre>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Ejecutar Clasificadores</h3>
+                    <p>Clasifica las noticias pendientes como "Accidente" o "No Accidente".</p>
+                    <button id="run-classifiers-btn" class="action-btn">Ejecutar Todos</button>
+                    <pre id="classifiers-log" class="log-output"></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 CrashScraper Project. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="/static/js/acciones.js"></script>
+</body>
+</html> 

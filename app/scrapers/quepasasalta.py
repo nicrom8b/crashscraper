@@ -16,7 +16,7 @@ class QuePasaSaltaScraper(BaseScraper):
 
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
-        self.media_id = 'quepasasalta'
+        self.media_name = 'quepasasalta'
 
     def scrape(self, db) -> int:
         noticias_guardadas = 0
@@ -132,12 +132,6 @@ class QuePasaSaltaScraper(BaseScraper):
                         
                         found_articles_on_page = True
                         
-                        # Verificar si ya existe en la base de datos
-                        from app.db import Noticia
-                        if db.query(Noticia).filter(Noticia.url == url).first():
-                            print(f"⏭️ Artículo ya existe: {url}")
-                            continue
-                        
                         # Scrapea la página individual del artículo para más detalles
                         try:
                             print(f"🔍 Scrapeando artículo: {url}")
@@ -147,28 +141,17 @@ class QuePasaSaltaScraper(BaseScraper):
                             
                             contenido, contenido_crudo = self._extract_content(nota_soup)
 
-                            noticia = {
+                            noticia_data = {
                                 "titulo": titulo,
                                 "contenido": contenido,
                                 "contenido_crudo": contenido_crudo,
                                 "fecha": article_date,
                                 "url": url,
-                                "media_id": self.media_id
+                                "media_name": self.media_name
                             }
                             
-                            # Guardar en la base de datos
-                            noticia_obj = Noticia(
-                                titulo=noticia["titulo"],
-                                contenido=noticia["contenido"],
-                                contenido_crudo=noticia["contenido_crudo"],
-                                fecha=noticia["fecha"],
-                                url=noticia["url"],
-                                media_id=noticia["media_id"]
-                            )
-                            db.add(noticia_obj)
-                            db.commit()
-                            noticias_guardadas += 1
-                            print(f"✅ Artículo extraído y guardado: {titulo}")
+                            if self._guardar_noticia(db, noticia_data):
+                                noticias_guardadas += 1
                             
                             # Espera entre requests de artículos individuales
                             time.sleep(2)

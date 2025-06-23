@@ -1,14 +1,21 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text, or_, and_, func
-from app.db import Noticia
+from app.db import Noticia, Media
 from app.llm_client import llm_client
 import re
 import logging
+from pydantic import BaseModel
+import spacy
+
+class Consulta(BaseModel):
+    pregunta: str
 
 class QueryService:
     def __init__(self, db: Session):
         self.db = db
+        self.nlp = spacy.load("es_core_news_sm")
+        self.llm_client = llm_client
     
     def search_news(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -58,56 +65,63 @@ class QueryService:
             for noticia in news
         ]
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """
-        Obtiene estadísticas de la base de datos
-        """
-        total_news = self.db.query(Noticia).count()
-        traffic_accidents = self.db.query(Noticia).filter(Noticia.es_accidente_transito == True).count()
-        non_traffic_accidents = self.db.query(Noticia).filter(Noticia.es_accidente_transito == False).count()
-        unclassified = self.db.query(Noticia).filter(Noticia.es_accidente_transito.is_(None)).count()
-        
-        # Estadísticas por medio de comunicación
-        media_stats = {}
-        media_counts = self.db.query(Noticia.media_id, func.count(Noticia.id)).group_by(Noticia.media_id).all()
-        for media_id, count in media_counts:
-            media_stats[media_id or "sin_medio"] = count
+    def get_statistics(self):
+        # Estadísticas generales
+        total_noticias = self.db.query(Noticia).count()
+        cantidad_accidentes = self.db.query(Noticia).filter_by(es_accidente_transito=True).count()
+        cantidad_no_accidentes = self.db.query(Noticia).filter_by(es_accidente_transito=False).count()
+        cantidad_sin_clasificar = self.db.query(Noticia).filter(Noticia.es_accidente_transito.is_(None)).count()
+
+        estadisticas_generales = {
+            "total_noticias": total_noticias,
+            "cantidad_accidentes": cantidad_accidentes,
+            "cantidad_no_accidentes": cantidad_no_accidentes,
+            "cantidad_sin_clasificar": cantidad_sin_clasificar,
+        }
+
+        # Estadísticas por medio
+        resultados_por_medio = self.db.query(
+            Media.name,
+            func.count(Noticia.id).label('total_noticias')
+        ).join(Noticia, Media.id == Noticia.media_id).group_by(Media.name).all()
+
+        estadisticas_por_medio = {
+            name: {"total_noticias": total}
+            for name, total in resultados_por_medio
+        }
         
         return {
-            "total_noticias": total_news,
-            "accidentes_transito": traffic_accidents,
-            "no_accidentes_transito": non_traffic_accidents,
-            "sin_clasificar": unclassified,
-            "por_medio": media_stats
+            "estadisticas_generales": estadisticas_generales,
+            "estadisticas_por_medio": estadisticas_por_medio
         }
     
-    def query_with_llm(self, question: str) -> Dict[str, Any]:
+    def query_with_llm(self, user_query: str) -> str:
         """
         Procesa una pregunta usando el LLM y la base de datos
         """
         # Verificar si Ollama está disponible
-        if not llm_client.is_available():
+        if not self.llm_client.is_available():
             return {
                 "error": "Ollama no está disponible. Asegúrate de que esté corriendo.",
                 "sugerencia": "Ejecuta: docker-compose up -d ollama"
             }
         
         # Buscar noticias relevantes
-        logging.info(f"Buscando noticias relevantes para: '{question}'")
-        relevant_news = self.search_news(question, limit=5)
+        logging.info(f"Buscando noticias relevantes para: '{user_query}'")
+        relevant_news = self.search_news(user_query, limit=5)
         logging.info(f"Encontradas {len(relevant_news)} noticias relevantes.")
         
         # Construir el prompt para el LLM
-        prompt = self._build_llm_prompt(question, relevant_news)
+        prompt = self._build_llm_prompt(user_query, relevant_news)
         logging.info(f"Prompt para el LLM:\n{prompt}")
         
         # Obtener respuesta del LLM
         logging.info("Enviando prompt al LLM...")
-        llm_response = llm_client.query(prompt)
+        llm_response = self.llm_client.query(prompt)
         logging.info(f"Respuesta del LLM: {llm_response}")
         
         return {
-            "pregunta": question,
+            "pregunta": user_query,
             "respuesta": llm_response,
             "noticias_relevantes": relevant_news,
             "total_noticias_encontradas": len(relevant_news)

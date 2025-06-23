@@ -12,7 +12,7 @@ class ElTribunoScraper(BaseScraper):
 
     def __init__(self, fecha_limite=None):
         super().__init__(fecha_limite)
-        self.media_id = 'eltribuno'
+        self.media_name = 'eltribuno'
 
     def scrape(self, db) -> int:
         noticias_guardadas = 0
@@ -84,33 +84,24 @@ class ElTribunoScraper(BaseScraper):
 
                             # Construir la fecha desde las partes extraídas de la URL
                             fecha = article_date
-                            noticia = {
+                            noticia_data = {
                                 "titulo": titulo,
                                 "contenido": contenido,
                                 "contenido_crudo": contenido_crudo,
                                 "fecha": fecha,
                                 "url": url,
-                                "media_id": self.media_id
+                                "media_name": self.media_name
                             }
                             # Guardar en la base de datos
-                            from app.db import Noticia
-                            noticia_obj = Noticia(
-                                titulo=noticia["titulo"],
-                                contenido=noticia["contenido"],
-                                contenido_crudo=noticia["contenido_crudo"],
-                                fecha=noticia["fecha"],
-                                url=noticia["url"],
-                                media_id=noticia["media_id"]
-                            )
-                            db.add(noticia_obj)
-                            db.commit()
-                            noticias_guardadas += 1
-                            print(f"✅ Artículo extraído y guardado: {titulo}")
+                            if self._guardar_noticia(db, noticia_data):
+                                noticias_guardadas += 1
+                            
                             # Espera entre requests de artículos individuales
                             time.sleep(2)
                             
                         except Exception as e:
                             print(f"❌ Error scraping artículo individual {url}: {str(e)}")
+                            db.rollback()
                             continue
                     
                     except Exception as e:

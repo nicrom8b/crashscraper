@@ -12,10 +12,10 @@ class JujuyDiceScraper(BaseScraper):
         super().__init__(fecha_limite)
         self.base_url = "https://www.jujuydice.com.ar"
         self.pagina_url_template = "https://www.jujuydice.com.ar/noticias/pagina-{page}"
-        self.media_id = 'jujuydice'
+        self.media_name = 'jujuydice'
 
     def scrape(self, db) -> int:
-        print(f"🚀 Scraping {self.media_id}")
+        print(f"🚀 Scraping {self.media_name}")
         pagina = 1
         noticias_guardadas = 0
         urls_vistas = set()
@@ -78,19 +78,20 @@ class JujuyDiceScraper(BaseScraper):
                                 print(f"🛑 Demasiados artículos antiguos, deteniendo scraping en página {pagina}")
                                 return noticias_guardadas
                             continue
-                        noticia = Noticia(
-                            titulo=titulo,
-                            contenido=contenido,
-                            url=url_articulo,
-                            fecha=fecha_articulo,
-                            contenido_crudo=contenido_crudo,
-                            media_id=self.media_id
-                        )
-                        db.add(noticia)
-                        db.commit()
-                        noticias_guardadas += 1
-                        articulos_procesados += 1
-                        print(f"✅ Artículo guardado: {titulo[:50]}...")
+
+                        noticia_data = {
+                            "titulo": titulo,
+                            "contenido": contenido,
+                            "url": url_articulo,
+                            "fecha": fecha_articulo,
+                            "contenido_crudo": contenido_crudo,
+                            "media_name": self.media_name
+                        }
+                        
+                        if self._guardar_noticia(db, noticia_data):
+                            noticias_guardadas += 1
+                            articulos_procesados += 1
+                        
                     except Exception as e:
                         print(f"❌ Error procesando artículo: {e}")
                         db.rollback()
