@@ -1,7 +1,7 @@
 import re
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
-from . import SEARCH_TERMS, DEFAULT_THRESHOLDS
+from . import SEARCH_TERMS, DEFAULT_THRESHOLDS, contiene_exclusion
 
 print("🔄 Cargando stopwords de NLTK...")
 stops = set(stopwords.words("spanish"))
@@ -15,6 +15,8 @@ def es_accidente_stemmer(titulo: str, contenido: str, search_terms=None, thresho
     
     stemmer = SnowballStemmer("spanish")
     texto = f"{titulo} {contenido}".lower()
+    if contiene_exclusion(texto):
+        return False
     tokens = re.findall(r'\w+', texto)
     tokens = [t for t in tokens if t not in stops]
     stems = [stemmer.stem(t) for t in tokens]

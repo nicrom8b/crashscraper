@@ -4,10 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db import SessionLocal, Noticia
 from app.scrapers import SCRAPERS
-from app.classifiers.simple import es_accidente_simple
-from app.classifiers.stemmer import es_accidente_stemmer
-from app.classifiers.lemmatizer import es_accidente_lemmatizer
-from app.classifiers.ml_weighted import es_accidente_ml_weighted
+from app.classifier import clasificar_noticia_completa
 from app.classifiers import DEFAULT_THRESHOLDS
 import datetime
 import time
@@ -54,65 +51,46 @@ def run_classifiers(custom_thresholds=None, force_reclassify=False):
         'ml_weighted': {'accidentes': 0, 'no_accidentes': 0}
     }
     
+    # Contadores para el voto mayoritario
+    votos_mayoritarios = {'accidentes': 0, 'no_accidentes': 0}
+    
     print("🚀 Iniciando clasificación de noticias...")
     for i, noticia in enumerate(sin_clasificar, 1):
         print(f"\n📝 Procesando noticia {i}/{len(sin_clasificar)}: {noticia.titulo[:50]}...")
         
-        # Clasificador Simple
-        print("  🔸 Ejecutando clasificador Simple...")
-        resultado_simple = es_accidente_simple(
+        # Clasificar noticia usando la función centralizada
+        resultado_clasificacion = clasificar_noticia_completa(
             noticia.titulo, 
             noticia.contenido, 
-            threshold=thresholds['simple']
+            thresholds=thresholds
         )
-        noticia.es_accidente_simple = resultado_simple
-        if resultado_simple:
-            resultados['simple']['accidentes'] += 1
-        else:
-            resultados['simple']['no_accidentes'] += 1
-        print(f"    Resultado: {'✅ ACCIDENTE' if resultado_simple else '❌ NO ACCIDENTE'}")
         
-        # Clasificador Stemmer
-        print("  🔸 Ejecutando clasificador Stemmer...")
-        resultado_stem = es_accidente_stemmer(
-            noticia.titulo, 
-            noticia.contenido, 
-            threshold=thresholds['stemmer']
-        )
-        noticia.es_accidente_stem = resultado_stem
-        if resultado_stem:
-            resultados['stemmer']['accidentes'] += 1
-        else:
-            resultados['stemmer']['no_accidentes'] += 1
-        print(f"    Resultado: {'✅ ACCIDENTE' if resultado_stem else '❌ NO ACCIDENTE'}")
+        # Extraer resultados individuales
+        resultados_individuales = resultado_clasificacion['resultados_individuales']
+        es_accidente_final = resultado_clasificacion['es_accidente_transito']
         
-        # Clasificador Lemmatizer
-        print("  🔸 Ejecutando clasificador Lemmatizer...")
-        resultado_lemma = es_accidente_lemmatizer(
-            noticia.titulo, 
-            noticia.contenido, 
-            threshold=thresholds['lemmatizer']
-        )
-        noticia.es_accidente_lemma = resultado_lemma
-        if resultado_lemma:
-            resultados['lemmatizer']['accidentes'] += 1
-        else:
-            resultados['lemmatizer']['no_accidentes'] += 1
-        print(f"    Resultado: {'✅ ACCIDENTE' if resultado_lemma else '❌ NO ACCIDENTE'}")
+        # Guardar resultados individuales en la base de datos
+        noticia.es_accidente_simple = resultados_individuales['simple']
+        noticia.es_accidente_stem = resultados_individuales['stemmer']
+        noticia.es_accidente_lemma = resultados_individuales['lemmatizer']
+        noticia.es_accidente_ml = resultados_individuales['ml_weighted']
+        noticia.es_accidente_transito = es_accidente_final
         
-        # Clasificador ML Weighted
-        print("  🔸 Ejecutando clasificador ML Weighted...")
-        resultado_ml = es_accidente_ml_weighted(
-            noticia.titulo, 
-            noticia.contenido, 
-            threshold=thresholds['ml_weighted']
-        )
-        noticia.es_accidente_ml = resultado_ml
-        if resultado_ml:
-            resultados['ml_weighted']['accidentes'] += 1
+        # Actualizar contadores individuales
+        for clasificador, resultado in resultados_individuales.items():
+            if resultado:
+                resultados[clasificador]['accidentes'] += 1
+            else:
+                resultados[clasificador]['no_accidentes'] += 1
+            print(f"  🔸 {clasificador.upper()}: {'✅ ACCIDENTE' if resultado else '❌ NO ACCIDENTE'}")
+        
+        # Actualizar contadores del voto mayoritario
+        if es_accidente_final:
+            votos_mayoritarios['accidentes'] += 1
         else:
-            resultados['ml_weighted']['no_accidentes'] += 1
-        print(f"    Resultado: {'✅ ACCIDENTE' if resultado_ml else '❌ NO ACCIDENTE'}")
+            votos_mayoritarios['no_accidentes'] += 1
+            
+        print(f"  🗳️  Voto mayoritario: {'✅ ACCIDENTE DE TRÁNSITO' if es_accidente_final else '❌ NO ES ACCIDENTE DE TRÁNSITO'}")
         
         # Guardar cada 10 noticias para evitar pérdida de datos
         if i % 10 == 0:
@@ -124,11 +102,16 @@ def run_classifiers(custom_thresholds=None, force_reclassify=False):
     end_time = time.time()
     
     print(f"\n🎉 Clasificación completada en {end_time - start_time:.2f} segundos")
-    print(f"📊 Resumen de resultados:")
+    print(f"📊 Resumen de resultados por clasificador:")
     for clasificador, stats in resultados.items():
         total = stats['accidentes'] + stats['no_accidentes']
         porcentaje = (stats['accidentes'] / total * 100) if total > 0 else 0
         print(f"  {clasificador.upper()}: {stats['accidentes']} accidentes, {stats['no_accidentes']} no accidentes ({porcentaje:.1f}% accidentes)")
+    
+    print(f"\n🗳️  Resumen de voto mayoritario:")
+    total_votos = votos_mayoritarios['accidentes'] + votos_mayoritarios['no_accidentes']
+    porcentaje_votos = (votos_mayoritarios['accidentes'] / total_votos * 100) if total_votos > 0 else 0
+    print(f"  VOTO MAYORITARIO: {votos_mayoritarios['accidentes']} accidentes de tránsito, {votos_mayoritarios['no_accidentes']} no accidentes ({porcentaje_votos:.1f}% accidentes de tránsito)")
     
     print(f"💾 Total noticias clasificadas: {len(sin_clasificar)}")
     db.close()

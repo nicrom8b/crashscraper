@@ -26,4 +26,12 @@ DEFAULT_THRESHOLDS = {
     'stemmer': 2,       # Al menos 1 término debe aparecer después del stemming
     'lemmatizer': 2,    # Al menos 1 término debe aparecer después de lematización
     'ml_weighted': 2    # Score mínimo de 2 para clasificar como accidente
-} 
+}
+
+# Términos de exclusión para evitar falsos positivos (noticias de salud, medicamentos, etc.)
+EXCLUSION_TERMS = [
+    "medicación", "tratamiento", "cardiovascular", "obesidad", "enfermedad", "hospital", "salud", "medicamento", "protección cardiovascular"
+]
+
+def contiene_exclusion(texto):
+    return any(term in texto.lower() for term in EXCLUSION_TERMS) 

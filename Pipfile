@@ -6,19 +6,27 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-fastapi = "*"
-uvicorn = "*"
-sqlalchemy = "*"
-pymysql = "*"
-requests = "*"
-pydantic = "*"
-beautifulsoup4 = "*"
-nltk = "*"
-spacy = "*"
+fastapi = "0.111.1"
+uvicorn = "0.30.3"
+sqlalchemy = "2.0.31"
+pymysql = "1.1.1"
+pydantic = "2.8.2"
+requests = "2.32.3"
+beautifulsoup4 = "4.12.3"
+python-dotenv = "1.0.1"
+nltk = "3.8.1"
+scikit-learn = "1.5.1"
+pandas = "2.2.2"
+numpy = "1.26.4"
+dateparser = "1.2.0"
+feedparser = "6.0.11"
+lxml = "5.2.2"
+mariadb = "1.1.9"
+spacy = "3.7.5"
 es-core-news-sm = {file = "https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.7.0/es_core_news_sm-3.7.0.tar.gz"}
 
 [scripts]
 start = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 [requires]
-python_version = "3.11" 
+python_version = "3.11"

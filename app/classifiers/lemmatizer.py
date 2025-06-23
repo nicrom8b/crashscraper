@@ -1,6 +1,6 @@
 import spacy
 import re
-from . import SEARCH_TERMS, DEFAULT_THRESHOLDS
+from . import SEARCH_TERMS, DEFAULT_THRESHOLDS, contiene_exclusion
 
 print("🔄 Cargando modelo de spaCy para español...")
 nlp = spacy.load("es_core_news_sm")
@@ -13,6 +13,8 @@ def es_accidente_lemmatizer(titulo: str, contenido: str, search_terms=None, thre
         threshold = DEFAULT_THRESHOLDS['lemmatizer']
     
     texto = f"{titulo} {contenido}".lower()
+    if contiene_exclusion(texto):
+        return False
     doc = nlp(texto)
     lemmas = [token.lemma_ for token in doc if not token.is_stop]
     found_terms = sum(1 for term in search_terms if term in lemmas)
